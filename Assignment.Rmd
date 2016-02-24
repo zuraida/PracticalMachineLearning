@@ -1,0 +1,178 @@
+---
+title: "Machine Learning Assignment"
+author: "Zuraida"
+date: "Monday, February 22, 2016"
+output: html_document
+---
+
+PRACTICAL MACHINE LEARNING PROJECT
+======================================
+The goal of THE project is to predict the manner in which the participant did the exercise. This is the "classe" variable in the training set. The prediction model is described in details in the following section and it is used to predict 20 different test cases.
+
+Getting The Data 
+================
+The data from the url given is dowloaded as follows:
+```{r}
+
+trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#setwd("D:/R assignment/Practical machine learning/Assignment2")
+
+#create the folder if it is not exist in the directory
+#if(!file.exists("data")){
+ # dir.create("data")
+#}
+
+training <- read.csv(url(trainUrl), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(testUrl), na.strings=c("NA","#DIV/0!",""))
+getwd()
+
+```
+
+
+Pre-processing the data
+=======================
+The data need to be pre-processed.This is done by deleting unnessary column such as column representing ID, columns that contain too much NA as well as column that has near zero variance.
+
+```{r pre processing}
+col <- length(training) #no of column
+row <-nrow(training)  #no of row
+
+#(a)Remove the first column of the training data - the ID variable 
+mytraining <- training[c(-1)]
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+myDataNZV <- nearZeroVar(mytraining, saveMetrics=TRUE)
+myNZVvars <- names(mytraining) %in% c("new_window", "kurtosis_roll_belt", "kurtosis_picth_belt",
+                                      "kurtosis_yaw_belt", "skewness_roll_belt", "skewness_roll_belt.1", "skewness_yaw_belt",
+                                      "max_yaw_belt", "min_yaw_belt", "amplitude_yaw_belt", "avg_roll_arm", "stddev_roll_arm",
+                                      "var_roll_arm", "avg_pitch_arm", "stddev_pitch_arm", "var_pitch_arm", "avg_yaw_arm",
+                                      "stddev_yaw_arm", "var_yaw_arm", "kurtosis_roll_arm", "kurtosis_picth_arm",
+                                      "kurtosis_yaw_arm", "skewness_roll_arm", "skewness_pitch_arm", "skewness_yaw_arm",
+                                      "max_roll_arm", "min_roll_arm", "min_pitch_arm", "amplitude_roll_arm", "amplitude_pitch_arm",
+                                      "kurtosis_roll_dumbbell", "kurtosis_picth_dumbbell", "kurtosis_yaw_dumbbell", "skewness_roll_dumbbell",
+                                      "skewness_pitch_dumbbell", "skewness_yaw_dumbbell", "max_yaw_dumbbell", "min_yaw_dumbbell",
+                                      "amplitude_yaw_dumbbell", "kurtosis_roll_forearm", "kurtosis_picth_forearm", "kurtosis_yaw_forearm",
+                                      "skewness_roll_forearm", "skewness_pitch_forearm", "skewness_yaw_forearm", "max_roll_forearm",
+                                      "max_yaw_forearm", "min_roll_forearm", "min_yaw_forearm", "amplitude_roll_forearm",
+                                      "amplitude_yaw_forearm", "avg_roll_forearm", "stddev_roll_forearm", "var_roll_forearm",
+                                      "avg_pitch_forearm", "stddev_pitch_forearm", "var_pitch_forearm", "avg_yaw_forearm",
+                                      "stddev_yaw_forearm", "var_yaw_forearm")
+mytraining <- mytraining[!myNZVvars]
+
+#(b)Remove the coloum with more than 60% NA.
+naVector <- vector()
+
+for(i in 1:length(mytraining)){
+  if(sum(is.na(mytraining[ ,i]))/row > 0.6)
+  {
+    naVector <- c(naVector, i)
+   }
+}
+
+mytrainingV2 <- mytraining[ ,-naVector]
+```
+
+Data partitioning & Cross Validation
+=====================================
+The training data will be divided into training set and testing set. Cross validation will be used.
+```{r}
+library(caret)
+inTrain <- createDataPartition(y=mytrainingV2$classe, p=0.6, list=FALSE)
+training_dataset <- mytrainingV2[inTrain, ]
+CV <- mytrainingV2[-inTrain, ]
+
+inTrain2 <- createDataPartition(y=CV$classe, p=0.5, list=FALSE)
+CVtraining_dataset <- CV[inTrain2, ]
+CVtesting_dataset <- CV[-inTrain2, ]
+
+dim(training_dataset)
+dim(CVtraining_dataset)
+dim(CVtesting_dataset)
+```
+
+Apply Machine Learning & Cross Validation: Random Forest and the prediction 
+============================================================================
+The machine learning algorithm which is Randon Forest is applied for prediction of how well the participant do the exercise. The reason why Random Forest is choosed is because it is one of the most used/accurate algorithms along with boosting.
+
+```{r}
+library(randomForest)
+rfFit <- randomForest(classe ~., data=training_dataset, type = "class") 
+rfPredict <- predict(rfFit, CVtraining_dataset)
+confusionMatrix (rfPredict, CVtraining_dataset$classe)
+
+rfPredict1 <- predict(rfFit, CVtesting_dataset)
+confusionMatrix (rfPredict1, CVtesting_dataset$classe)
+```
+
+The model is used for prediction using the testing dataset. The testing data set need to pre-process as follows:
+
+```{r preprocessing testing dataset}
+
+mytesting <- testing[c(-1)]
+myDataNZV <- nearZeroVar(mytesting, saveMetrics=TRUE)
+myNZVvars <- names(mytesting) %in% c("new_window", "kurtosis_roll_belt", "kurtosis_picth_belt",
+                                      "kurtosis_yaw_belt", "skewness_roll_belt", "skewness_roll_belt.1", "skewness_yaw_belt",
+                                      "max_yaw_belt", "min_yaw_belt", "amplitude_yaw_belt", "avg_roll_arm", "stddev_roll_arm",
+                                      "var_roll_arm", "avg_pitch_arm", "stddev_pitch_arm", "var_pitch_arm", "avg_yaw_arm",
+                                      "stddev_yaw_arm", "var_yaw_arm", "kurtosis_roll_arm", "kurtosis_picth_arm",
+                                      "kurtosis_yaw_arm", "skewness_roll_arm", "skewness_pitch_arm", "skewness_yaw_arm",
+                                      "max_roll_arm", "min_roll_arm", "min_pitch_arm", "amplitude_roll_arm", "amplitude_pitch_arm",
+                                      "kurtosis_roll_dumbbell", "kurtosis_picth_dumbbell", "kurtosis_yaw_dumbbell", "skewness_roll_dumbbell",
+                                      "skewness_pitch_dumbbell", "skewness_yaw_dumbbell", "max_yaw_dumbbell", "min_yaw_dumbbell",
+                                      "amplitude_yaw_dumbbell", "kurtosis_roll_forearm", "kurtosis_picth_forearm", "kurtosis_yaw_forearm",
+                                      "skewness_roll_forearm", "skewness_pitch_forearm", "skewness_yaw_forearm", "max_roll_forearm",
+                                      "max_yaw_forearm", "min_roll_forearm", "min_yaw_forearm", "amplitude_roll_forearm",
+                                      "amplitude_yaw_forearm", "avg_roll_forearm", "stddev_roll_forearm", "var_roll_forearm",
+                                      "avg_pitch_forearm", "stddev_pitch_forearm", "var_pitch_forearm", "avg_yaw_forearm",
+                                      "stddev_yaw_forearm", "var_yaw_forearm")
+mytesting <- mytesting[!myNZVvars]
+rowt <- nrow(mytesting) # number of row for testing dataset
+
+#(b)Remove the coloum with more than 60% NA.
+naVector <- vector()
+
+for(i in 1:length(mytesting)){
+  if(sum(is.na(mytesting[ ,i]))/rowt > 0.6)
+  {
+    naVector <- c(naVector, i)
+  }
+}
+
+mytestingV2 <- mytesting[ ,-naVector]
+summary(mytestingV2)
+```
+
+The model is then tested with the testing dataset as follows:
+
+```{r testing dataset with prediction model}
+mytestingV2 <- mytestingV2[, -length(colnames(mytestingV2))]
+
+newFrame <- head(training_dataset,1)
+newFrame <- newFrame[, -length(colnames(newFrame))] 
+fixedtestData <- rbind(newFrame, mytestingV2)
+fixedtestData <- fixedtestData[-1,]
+
+
+rfPredictTest <- predict(rfFit, fixedtestData, type="class")
+rfPredictTest
+
+```
+
+Submission process
+==================
+The submission process is as follows:
+
+```{r submission}
+pml_write_files = function (x){
+  n=length(x)
+  for (i in 1:n){
+    filename=paste0("problem_id_", i, ".txt")
+    write.table(x[i], file=filename, quote=FALSE, row.names=FALSE, col.names=FALSE)
+  }
+}
+
+pml_write_files(rfPredictTest)
+```
